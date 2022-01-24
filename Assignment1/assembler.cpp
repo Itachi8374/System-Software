@@ -41,7 +41,7 @@ void build_OPTAB(){
 
 string remove_trailing_space(string s){
     int l = 0, r = s.size()-1;
-    while(r>=0 && s[r]==' '){
+    while(r>=0 && s[r]==' ' || s[r] == '\t'){
         r--;
     }
     string ans = "";
@@ -91,6 +91,7 @@ string print_pass1(string label, string opcode, string operand, int locctr, bool
     string LOCCTR = (end? "" :dec_to_hex(locctr));
     fit_to_field_length(label, FIELD_LENGTH);
     fit_to_field_length(opcode, FIELD_LENGTH);
+    fit_to_field_length_add(LOCCTR,4);
     fit_to_field_length(LOCCTR, FIELD_LENGTH);
     string record = LOCCTR+label+opcode+operand;
     return record;
@@ -114,7 +115,6 @@ int first_pass(){
         }
         opcode = remove_trailing_space(line.substr(10,10));
         operand = remove_trailing_space(line.substr(20));
-
         if(opcode == "START"){
             LOCCTR = stoi(operand, nullptr, 16);
             START = LOCCTR;
@@ -128,8 +128,12 @@ int first_pass(){
             if(label != ""){
                 if(SYMTAB.find(label)!=SYMTAB.end()){
                     duplicate_error = true;
+                    cerr<<"duplicate definition found for symbol "<<label<<endl<<"Previous definition "<<label<<": "<<SYMTAB[label];
+                    exit(1);
                 }else{
-                    SYMTAB[label] = dec_to_hex(LOCCTR);
+                    string symb = dec_to_hex(LOCCTR);
+                    fit_to_field_length_add(symb,4);
+                    SYMTAB[label] = symb;
                 }
             }
             string record =  print_pass1(label, opcode, operand, LOCCTR, false);
@@ -152,9 +156,12 @@ int first_pass(){
                     LOCCTR += (len-2)/2;
                 }else{
                     invalid_opcode_error = true;
+                    cerr<<"Unidentified type "<<identifier<<" found for BYTE"<<endl;
+                    exit(1);
                 }
             }else{
-                invalid_opcode_error = true;
+                cerr<<"Unidentified OPCODE "<<opcode<<" found for BYTE"<<endl;
+                exit(1);
             }
         }
     }
@@ -280,6 +287,8 @@ void second_pass(int LENGTH){
                     }else{
                         object_code += "0000";
                         undefined_symbol = true;
+                        cerr<<"Unidentified symbol "<<operand<<endl;
+                        exit(1);
                     }
                 }else{
                     object_code+= "0000";
