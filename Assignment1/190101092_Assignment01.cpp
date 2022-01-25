@@ -125,6 +125,9 @@ int first_pass(){
         getline(fread,line);
 
         string label,opcode,operand;
+        if(line.size()<20){
+            continue;
+        }
         label = remove_trailing_space(line.substr(0,FIELD_LENGTH));
         if(is_comment(label)){
             continue;
