@@ -125,7 +125,7 @@ int first_pass(){
         getline(fread,line);
 
         string label,opcode,operand;
-        if(line.size()<20){
+        if(line.size()<21){
             continue;
         }
         label = remove_trailing_space(line.substr(0,FIELD_LENGTH));
