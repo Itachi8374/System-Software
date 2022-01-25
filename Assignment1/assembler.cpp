@@ -4,6 +4,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <algorithm>
 #include <unordered_map>
 
 using namespace std;
@@ -160,7 +161,7 @@ int first_pass(){
                     exit(1);
                 }
             }else{
-                cerr<<"Unidentified OPCODE "<<opcode<<" found for BYTE"<<endl;
+                cerr<<"OPCODE "<<opcode<<" not found in instruction set"<<endl;
                 exit(1);
             }
         }
@@ -214,26 +215,30 @@ string print_pass2(string locctr, string label, string opcode, string operand){
 }
 
 string get_header(string name, string start, int LENGTH){
-    string ans = "H";
+    string ans = "H\u2038";
     string prog_name = name.substr(0,6); fit_to_field_length(prog_name, 6);
     string start_addr = start.substr(0,6); fit_to_field_length_add(start_addr,6);
     string length = dec_to_hex(LENGTH); fit_to_field_length_add(length,6);
-    ans+=prog_name+start_addr+length;
+    ans+=prog_name+"\u2038"+start_addr+"\u2038"+length;
     return ans;
 }
 
-string get_text_record(string T_record, string T_start_addr){
+string get_text_record(string T_record, string T_start_addr, int caret_count){
     fit_to_field_length_add(T_start_addr,6);
-    string ans = "T"+T_start_addr;
-    string len = dec_to_hex((T_record.size()+1)/2);
+    string ans = "T\u2038"+T_start_addr+"\u2038";
+    string len = dec_to_hex((T_record.size()+1-caret_count)/2);
     fit_to_field_length_add(len,2);
+    //to 
+    string temp_T = T_record.substr(3);
+    fit_to_field_length_add(temp_T, stoi(len)*2+caret_count-3);
+    T_record = "\u2038" +temp_T;
     ans+=len+T_record;
     return ans;
 }
 
 string get_end(string s){
     fit_to_field_length_add(s,6);
-    return "E"+s;
+    return "E\u2038"+s;
 }
 
 void second_pass(int LENGTH){
@@ -246,7 +251,8 @@ void second_pass(int LENGTH){
     string T_record = "", T_start_addr = "";
     bool undefined_symbol = false;
     bool first = false;
-    
+    int caret_count = 0;
+
     while(!fr_intermediate.eof()){
         getline(fr_intermediate,line);
         string locctr,label,opcode,operand;
@@ -262,7 +268,7 @@ void second_pass(int LENGTH){
             T_start_addr = locctr;
         }else if(opcode == "END"){
             if(T_record!=""){
-                string text_record = get_text_record(T_record,T_start_addr);
+                string text_record = get_text_record(T_record,T_start_addr,caret_count);
                 fw_object<<text_record<<endl;
                 T_record = "";
             }
@@ -306,24 +312,24 @@ void second_pass(int LENGTH){
             string record = print_pass2(locctr,label,opcode,operand) + object_code;
             fw_listing<<record<<endl;
 
-            //current text record + current object code > 60 print. 
-
-
             if(T_start_addr == "" && opcode!="RESW" && opcode!="RESB"){
                 T_start_addr = locctr;
             }
-            if(T_record.size() + object_code.size()<=60 && opcode!="RESW" && opcode!="RESB"){
-                T_record+=object_code;
+            if(T_record.size() + object_code.size()-caret_count<=60 && opcode!="RESW" && opcode!="RESB"){
+                T_record+="\u2038"+object_code;
+                caret_count+=3;
             }else{
                 if(T_record == "") continue;
-                string text_record = get_text_record(T_record,T_start_addr);
+                string text_record = get_text_record(T_record,T_start_addr,caret_count);
                 fw_object<<text_record<<endl;
                 if(opcode == "RESW" || opcode == "RESB"){
                     T_record = "";
                     T_start_addr = "";
+                    caret_count = 0;
                 }else{
-                    T_record = object_code;
+                    T_record = "\u2038"+object_code;
                     T_start_addr = locctr;
+                    caret_count = 3;
                 }
                 
             }
